@@ -25,7 +25,7 @@ FOR
 	FROM sys.tables t 
 	INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
 	WHERE t.[type] = 'U'
-    AND t.name NOT LIKE @AuditPrefix + '%' -- Ignore Audit Tables
+    	AND t.name NOT LIKE @AuditPrefix + '%' -- Ignore Audit Tables
 	ORDER BY s.name, t.name
 
 OPEN cur_Tables  
@@ -88,7 +88,7 @@ BEGIN
     PRINT 'Creating Delete Trigger'
     Exec (@DeleteTriggerQuery)
 
-	FETCH NEXT FROM cur_Tables
+    FETCH NEXT FROM cur_Tables
     INTO @TableId, @TableName, @SchemaName
 END
 CLOSE cur_Tables;  
