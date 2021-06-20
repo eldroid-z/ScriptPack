@@ -50,6 +50,8 @@ BEGIN
                     THEN t2.name + '(' + CAST(s3.prec AS VARCHAR(100)) + ')'
                 WHEN t2.name IN ('varchar', 'nvarchar', 'varbinary')
                     THEN t2.name + '(max)'
+		WHEN t2.name IN ('decimal', 'numeric')
+                    THEN t2.name + '(' + CAST(s3.prec AS VARCHAR(100)) + ',' + CAST(s3.scale AS VARCHAR(100)) + ')'
                 ELSE t2.name
             END AS [ColumnType], s.collation_name [ColumnCollation], s3.colorder [ColumnOrder]
         FROM sys.tables t 
