@@ -1,4 +1,4 @@
-USE <DBName>--Set DBName Here
+USE <DBName> --Set DBName Here
 GO
 -------------------------------------------------------
 -------------- Set Defaults Here ----------------------
@@ -6,6 +6,7 @@ GO
 DECLARE @ActionTime NVARCHAR(100) = N'SYSUTCDATETIME()'
 DECLARE @AuditPrefix NVARCHAR(100) = N'AT_'
 DECLARE @TriggerPrefix NVARCHAR(100) = N'TrgAudit_'
+DECLARE @NeedIdentityOnAuditTable BIT = 0
 -------------------------------------------------------
 -------------------------------------------------------
 
@@ -14,6 +15,16 @@ SELECT @DBCOLLATION  = d.collation_name
 FROM sys.databases d
 WHERE d.name = DB_NAME()
 
+DECLARE @ATIdentity NVARCHAR(MAX)
+IF @NeedIdentityOnAuditTable = 0
+BEGIN
+    SET @ATIdentity = N''
+END
+ELSE
+BEGIN
+    SET @ATIdentity = @AuditPrefix + N'Id BIGINT IDENTITY(1,1) NOT NULL, '
+END
+
 DECLARE @ColsQuery NVARCHAR(MAX)
 DECLARE @AuditTable NVARCHAR(128)
 
@@ -21,12 +32,12 @@ DECLARE @TableId int, @TableName NVARCHAR(128), @SchemaName NVARCHAR(128)
 
 DECLARE cur_Tables CURSOR LOCAL FORWARD_ONLY
 FOR
-	SELECT t.object_id [TableId], t.name AS TableName, s.name AS SchemaName
-	FROM sys.tables t 
-	INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
-	WHERE t.[type] = 'U'
-    	AND t.name NOT LIKE @AuditPrefix + '%' -- Ignore Audit Tables
-	ORDER BY s.name, t.name
+    SELECT t.object_id [TableId], t.name AS TableName, s.name AS SchemaName
+    FROM sys.tables t 
+    INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+    WHERE t.[type] = 'U'
+        AND t.name NOT LIKE @AuditPrefix + '%' -- Ignore Audit Tables
+    ORDER BY s.name, t.name
 
 OPEN cur_Tables  
   
@@ -37,20 +48,20 @@ WHILE @@FETCH_STATUS = 0
 BEGIN
     PRINT 'Creating Audit For ' + QUOTENAME(@SchemaName) + '.' + QUOTENAME(@TableName)
 
-  ---------------- Create Table -----------------
+    ---------------- Create Table -----------------
     SET @ColsQuery = ''
 
     SELECT @ColsQuery += ', ' + QUOTENAME(tc.ColumnName) + ' ' + UPPER(tc.ColumnType) 
                         + CASE WHEN tc.ColumnCollation IS NOT NULL AND tc.ColumnCollation <> @DBCOLLATION THEN ' COLLATE ' + tc.ColumnCollation ELSE '' END 
                         + ' NULL '
     FROM
-    (	SELECT s.name [ColumnName],
+    (   SELECT s.name [ColumnName],
             CASE 
                 WHEN t2.name IN ('char', 'nchar', 'binary')
                     THEN t2.name + '(' + CAST(s3.prec AS VARCHAR(100)) + ')'
                 WHEN t2.name IN ('varchar', 'nvarchar', 'varbinary')
                     THEN t2.name + '(max)'
-		WHEN t2.name IN ('decimal', 'numeric')
+        WHEN t2.name IN ('decimal', 'numeric')
                     THEN t2.name + '(' + CAST(s3.prec AS VARCHAR(100)) + ',' + CAST(s3.scale AS VARCHAR(100)) + ')'
                 ELSE t2.name
             END AS [ColumnType], s.collation_name [ColumnCollation], s3.colorder [ColumnOrder]
@@ -61,13 +72,13 @@ BEGIN
         INNER JOIN sys.syscolumns s3 ON s3.id = t.object_id AND s.name = s3.name 
         WHERE t.[type] = 'U'
         AND t.object_id = @TableId
-    ) AS tc	
+    ) AS tc 
     ORDER BY tc.ColumnOrder ASC
 
     SET @AuditTable = @AuditPrefix + @TableName
 
     DECLARE @TableQuery NVARCHAR(MAX) = N'CREATE TABLE ' + QUOTENAME(@SchemaName) + '.' + QUOTENAME(@AuditTable) + 
-    ' (' + @AuditPrefix + 'Action CHAR(1) NOT NULL, ' + @AuditPrefix + 'ActionTime DATETIME2 NOT NULL DEFAULT(' + @ActionTime + ')' + @ColsQuery + ' ) ';
+    ' (' + @ATIdentity + @AuditPrefix + 'Action CHAR(1) NOT NULL, ' + @AuditPrefix + 'ActionTime DATETIME2 NOT NULL DEFAULT(' + @ActionTime + ')' + @ColsQuery + ' ) ';
 
     ----------------- Create Update Trigger ---------------------------
     DECLARE @UpdateTriggerQuery NVARCHAR(MAX) = N'CREATE TRIGGER ' + QUOTENAME(@SchemaName) + '.' + QUOTENAME(@TriggerPrefix + 'Upd_' + @TableName) +
