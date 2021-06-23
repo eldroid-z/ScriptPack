@@ -36,7 +36,7 @@ FOR
     FROM sys.tables t 
     INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
     WHERE t.[type] = 'U'
-        AND t.name NOT LIKE @AuditPrefix + '%' -- Ignore Audit Tables
+    AND t.name NOT LIKE @AuditPrefix + '%' -- Ignore Audit Tables
     ORDER BY s.name, t.name
 
 OPEN cur_Tables  
@@ -61,7 +61,7 @@ BEGIN
                     THEN t2.name + '(' + CAST(s3.prec AS VARCHAR(100)) + ')'
                 WHEN t2.name IN ('varchar', 'nvarchar', 'varbinary')
                     THEN t2.name + '(max)'
-        WHEN t2.name IN ('decimal', 'numeric')
+                WHEN t2.name IN ('decimal', 'numeric')
                     THEN t2.name + '(' + CAST(s3.prec AS VARCHAR(100)) + ',' + CAST(s3.scale AS VARCHAR(100)) + ')'
                 ELSE t2.name
             END AS [ColumnType], s.collation_name [ColumnCollation], s3.colorder [ColumnOrder]
