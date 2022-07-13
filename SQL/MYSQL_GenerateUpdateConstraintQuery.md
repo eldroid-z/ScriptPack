@@ -1,4 +1,6 @@
-# Get all 
+# Query
+Generates query to update the OnDelete and OnUpdate cascading effect on Constraints.
+
 
 ``` sql
 SELECT CONCAT("ALTER TABLE `", t.TABLE_NAME, "` DROP FOREIGN KEY `", t.CONSTRAINT_NAME, "`;"
@@ -10,3 +12,4 @@ FROM information_schema.KEY_COLUMN_USAGE t
 INNER JOIN information_schema.REFERENTIAL_CONSTRAINTS r on t.CONSTRAINT_NAME = r.CONSTRAINT_NAME
 WHERE r.DELETE_RULE = 'CASCADE' OR r.UPDATE_RULE = 'CASCADE'
 ```
+Note : Works for Single Column Constraints.
